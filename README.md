@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Torque-OS" width="220"/>
+</p>
+
 # mechanics-infra-k8s
 
 Terraform infrastructure for the Kubernetes cluster (VPC + AWS EKS) — part of the [Torque-OS](https://github.com/Torque-OS) Mechanics Software platform.
