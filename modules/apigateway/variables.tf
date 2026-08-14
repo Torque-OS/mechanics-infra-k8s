@@ -3,13 +3,23 @@ variable "api_name" {
   type        = string
 }
 
-variable "backend_url" {
-  description = "Base URL of the EKS load balancer exposing the application (e.g. http://a1b2c3.us-east-1.elb.amazonaws.com:8080)"
+variable "nlb_listener_arn" {
+  description = "ARN of the listener on the internal NLB that the mechanics-software-api Service creates. Private integrations target a listener, not a URL."
   type        = string
 }
 
+variable "vpc_link_subnet_ids" {
+  description = "Subnets where API Gateway places the VPC Link network interfaces. Use the private subnets that host the cluster nodes."
+  type        = list(string)
+}
+
+variable "vpc_link_security_group_ids" {
+  description = "Security groups attached to the VPC Link interfaces. Must be allowed to reach the node port on the cluster nodes."
+  type        = list(string)
+}
+
 variable "gateway_key" {
-  description = "Shared secret injected as the X-Gateway-Key header on every proxied request. The application rejects requests that do not carry it, so the load balancer cannot be bypassed. Empty disables the header."
+  description = "Optional shared secret injected as X-Gateway-Key. Defence in depth only — the internal load balancer already makes the gateway the sole entry point. Empty disables it."
   type        = string
   sensitive   = true
   default     = ""

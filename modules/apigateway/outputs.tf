@@ -17,3 +17,8 @@ output "log_group_name" {
   description = "CloudWatch log group holding the access logs"
   value       = aws_cloudwatch_log_group.access.name
 }
+
+output "vpc_link_id" {
+  description = "VPC Link carrying traffic from the gateway into the cluster VPC"
+  value       = aws_apigatewayv2_vpc_link.this.id
+}

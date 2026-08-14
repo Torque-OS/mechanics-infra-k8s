@@ -10,23 +10,36 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "api_backend_url" {
+variable "enable_api_gateway" {
   description = <<-EOT
-    Base URL of the load balancer created by the mechanics-software-api Service,
-    including the port. The cluster must be up and the Service applied before the
-    gateway can be provisioned:
-
-      kubectl get svc mechanics-software-api -n mechanics-software \
-        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-
-    Leave empty to skip the API Gateway entirely (cluster-only apply).
+    Provision the API Gateway. Keep it false on the first apply: the private
+    integration targets the load balancer that the mechanics-software-api
+    Service creates, so the cluster and the Service must exist first.
   EOT
+  type        = bool
+  default     = false
+}
+
+variable "api_namespace" {
+  description = "Namespace of the application Service"
   type        = string
-  default     = ""
+  default     = "mechanics-software"
+}
+
+variable "api_service_name" {
+  description = "Name of the application Service whose load balancer the gateway targets"
+  type        = string
+  default     = "mechanics-software-api"
+}
+
+variable "api_service_port" {
+  description = "Port published by the application Service"
+  type        = number
+  default     = 8080
 }
 
 variable "gateway_key" {
-  description = "Shared secret the gateway injects as X-Gateway-Key. Must match GATEWAY_KEY in the application. Supply via TF_VAR_gateway_key, never in a committed file."
+  description = "Optional shared secret the gateway injects as X-Gateway-Key. Defence in depth — the internal load balancer already blocks any other way in. Supply via TF_VAR_gateway_key, never in a committed file."
   type        = string
   sensitive   = true
   default     = ""

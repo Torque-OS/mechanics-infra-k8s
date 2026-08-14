@@ -1,9 +1,6 @@
 locals {
   auth_lambda_enabled = var.auth_lambda_name != ""
 
-  # Static parameter mapping applied to every proxied request. The application
-  # refuses requests without this header, which keeps the gateway as the only
-  # usable entry point even though the load balancer has a public DNS name.
   gateway_key_header = var.gateway_key != "" ? {
     "overwrite:header.X-Gateway-Key" = var.gateway_key
   } : {}
@@ -24,17 +21,23 @@ resource "aws_apigatewayv2_api" "this" {
   tags = var.tags
 }
 
-# ---------------------------------------------------------------------------
-# Application routes — proxied to the EKS load balancer
-# ---------------------------------------------------------------------------
+resource "aws_apigatewayv2_vpc_link" "this" {
+  name               = var.api_name
+  subnet_ids         = var.vpc_link_subnet_ids
+  security_group_ids = var.vpc_link_security_group_ids
+
+  tags = var.tags
+}
 
 resource "aws_apigatewayv2_integration" "eks" {
-  api_id                 = aws_apigatewayv2_api.this.id
-  integration_type       = "HTTP_PROXY"
-  integration_method     = "ANY"
-  integration_uri        = "${var.backend_url}/{proxy}"
-  payload_format_version = "1.0"
-  timeout_milliseconds   = 29000
+  api_id             = aws_apigatewayv2_api.this.id
+  integration_type   = "HTTP_PROXY"
+  integration_method = "ANY"
+
+  connection_type      = "VPC_LINK"
+  connection_id        = aws_apigatewayv2_vpc_link.this.id
+  integration_uri      = var.nlb_listener_arn
+  timeout_milliseconds = 29000
 
   request_parameters = local.gateway_key_header
 }
@@ -44,10 +47,6 @@ resource "aws_apigatewayv2_route" "proxy" {
   route_key = "ANY /{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.eks.id}"
 }
-
-# ---------------------------------------------------------------------------
-# Authentication route — proxied to the CPF Lambda
-# ---------------------------------------------------------------------------
 
 data "aws_lambda_function" "auth" {
   count         = local.auth_lambda_enabled ? 1 : 0
@@ -81,10 +80,6 @@ resource "aws_lambda_permission" "auth" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*/POST/auth"
 }
-
-# ---------------------------------------------------------------------------
-# Stage
-# ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "access" {
   name              = "/aws/apigateway/${var.api_name}"
