@@ -18,6 +18,16 @@ output "log_group_name" {
   value       = aws_cloudwatch_log_group.access.name
 }
 
+output "authorizer_id" {
+  description = "Identifier of the Lambda authorizer guarding the protected routes, null when none is configured"
+  value       = local.authorizer_enabled ? aws_apigatewayv2_authorizer.jwt[0].id : null
+}
+
+output "public_route_keys" {
+  description = "Routes deliberately left open, bypassing the authorizer"
+  value       = local.public_routes
+}
+
 output "vpc_link_id" {
   description = "VPC Link carrying traffic from the gateway into the cluster VPC"
   value       = aws_apigatewayv2_vpc_link.this.id

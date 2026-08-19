@@ -31,6 +31,27 @@ variable "auth_lambda_name" {
   default     = ""
 }
 
+variable "authorizer_lambda_name" {
+  description = "Name of the Lambda that authorizes protected routes. Empty leaves every route open, which is the pre-F3-12 behaviour."
+  type        = string
+  default     = ""
+}
+
+variable "authorizer_cache_ttl_seconds" {
+  description = "How long API Gateway caches an authorizer verdict, keyed by the Authorization header. Zero invokes the Lambda on every request. Keep well under the token lifetime."
+  type        = number
+  default     = 300
+}
+
+variable "public_routes" {
+  description = "Routes that bypass the authorizer. Health checks reach the pod directly and staff login is how a token is obtained in the first place, so neither can require one. Ignored when no authorizer is configured."
+  type        = list(string)
+  default = [
+    "GET /health",
+    "POST /api/auth/login",
+  ]
+}
+
 variable "log_retention_days" {
   description = "CloudWatch retention for API Gateway access logs"
   type        = number
