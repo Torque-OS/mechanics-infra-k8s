@@ -79,7 +79,7 @@ jobs:
         run: terraform apply -auto-approve -input=false -var="enable_datadog=false"
         working-directory: .
 
-      - name: Terraform Apply (Datadog)
+      - name: Terraform Apply - Install Datadog via Helm
         if: env.TF_VAR_enable_datadog == 'true'
         run: terraform apply -auto-approve -input=false
         working-directory: .

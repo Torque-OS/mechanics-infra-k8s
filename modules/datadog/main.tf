@@ -25,7 +25,6 @@ resource "helm_release" "datadog_agent" {
     value = var.cluster_name
   }
 
-  # Enables Kubernetes object metrics (pods, CPU, memory, requests/limits).
   set {
     name  = "datadog.kubeStateMetricsCore.enabled"
     value = "true"
