@@ -47,7 +47,7 @@ jobs:
         working-directory: .
 
       - name: Terraform Plan
-        run: terraform plan -no-color -input=false
+        run: terraform plan -no-color -input=false -var="enable_datadog=false"
         working-directory: .
 
   apply:
@@ -81,7 +81,7 @@ jobs:
 
       - name: Terraform Apply - Install Datadog via Helm
         if: env.TF_VAR_enable_datadog == 'true'
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -input=false -var="enable_datadog=true"
         working-directory: .
 
       - name: Print cluster name

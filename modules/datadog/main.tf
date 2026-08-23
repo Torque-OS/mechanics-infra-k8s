@@ -6,6 +6,13 @@ resource "helm_release" "datadog_agent" {
   namespace        = var.namespace
   create_namespace = true
 
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(coalesce(var.datadog_api_key, ""))) > 0
+      error_message = "datadog_api_key must be provided when Datadog is enabled."
+    }
+  }
+
   atomic          = true
   cleanup_on_fail = true
   timeout         = 600

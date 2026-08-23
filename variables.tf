@@ -63,10 +63,6 @@ variable "datadog_api_key" {
   sensitive   = true
   default     = null
 
-  validation {
-    condition     = var.datadog_api_key == null || length(trimspace(coalesce(var.datadog_api_key, ""))) > 0
-    error_message = "datadog_api_key cannot be empty when set."
-  }
 }
 
 variable "datadog_site" {

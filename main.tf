@@ -5,7 +5,7 @@ module "kubernetes" {
 }
 
 module "datadog" {
-  count  = var.enable_datadog ? 1 : 0
+  count = var.enable_datadog && var.datadog_api_key != null && length(trimspace(var.datadog_api_key)) > 0 ? 1 : 0
   source = "./modules/datadog"
 
   cluster_name    = module.kubernetes.cluster_name
