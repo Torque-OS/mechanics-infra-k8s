@@ -49,4 +49,19 @@ resource "helm_release" "datadog_agent" {
     name  = "datadog.processAgent.processCollection"
     value = "true"
   }
+
+  set {
+    name  = "datadog.prometheusScrape.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "datadog.prometheusScrape.serviceEndpoints"
+    value = "true"
+  }
+
+  set {
+    name  = "datadog.prometheusScrape.podAnnotations"
+    value = "true"
+  }
 }

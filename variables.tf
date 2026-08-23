@@ -64,8 +64,8 @@ variable "datadog_api_key" {
   default     = null
 
   validation {
-    condition     = !var.enable_datadog || (var.datadog_api_key != null && length(trimspace(var.datadog_api_key)) > 0)
-    error_message = "datadog_api_key must be provided when enable_datadog is true."
+    condition     = var.datadog_api_key == null || length(trimspace(coalesce(var.datadog_api_key, ""))) > 0
+    error_message = "datadog_api_key cannot be empty when set."
   }
 }
 
