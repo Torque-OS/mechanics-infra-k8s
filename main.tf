@@ -4,6 +4,19 @@ module "kubernetes" {
   aws_region   = var.aws_region
 }
 
+module "datadog" {
+  count  = var.enable_datadog ? 1 : 0
+  source = "./modules/datadog"
+
+  cluster_name    = module.kubernetes.cluster_name
+  datadog_api_key = var.datadog_api_key
+  datadog_site    = var.datadog_site
+  namespace       = var.datadog_namespace
+  release_name    = var.datadog_release_name
+
+  depends_on = [module.kubernetes]
+}
+
 locals {
   gateway_enabled = var.enable_api_gateway ? 1 : 0
 

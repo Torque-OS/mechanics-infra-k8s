@@ -8,6 +8,11 @@ output "cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
+output "cluster_certificate_authority_data" {
+  description = "Base64-encoded EKS cluster CA data"
+  value       = module.eks.cluster_certificate_authority_data
+}
+
 output "cluster_region" {
   description = "AWS region"
   value       = var.aws_region

@@ -14,6 +14,7 @@ Provisions the AWS networking, the EKS cluster that runs the main application, a
 
 - **IaC:** Terraform
 - **Cloud:** AWS (VPC, EKS, IAM, API Gateway v2, VPC Link, CloudWatch)
+- **Observability:** Datadog Agent via Helm
 - **Modules:** `terraform-aws-modules/vpc/aws` · `terraform-aws-modules/eks/aws`
 - **CI/CD:** GitHub Actions
 
@@ -50,6 +51,7 @@ outputs.tf
 providers.tf
 modules/
   kubernetes/      # VPC + EKS cluster + node group + addons
+  datadog/         # Datadog Agent Helm release (pods, CPU, memory metrics)
   apigateway/      # HTTP API, VPC Link, routes, stage, access logs
 ```
 
@@ -80,10 +82,11 @@ Wait until the NLB reports healthy targets — the gateway needs its listener:
 kubectl get svc mechanics-software-api -n mechanics-software
 ```
 
-**3. Cluster + gateway** — the NLB is discovered automatically by tag, so there is
-no hostname to copy:
+**3. Cluster + Datadog + gateway** — export the Datadog API key, then apply.
+The NLB is discovered automatically by tag, so there is no hostname to copy:
 
 ```bash
+export TF_VAR_datadog_api_key="<your-datadog-api-key>"
 terraform apply -var="enable_api_gateway=true"
 terraform output api_gateway_url
 ```
@@ -112,6 +115,11 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `aws_region` | AWS region | `us-east-1` |
 | `cluster_name` | EKS cluster name — also names the API Gateway | `mechanics-software` |
 | `enable_api_gateway` | Provision the gateway. Keep `false` until the Service exists | `false` |
+| `enable_datadog` | Install Datadog Agent in EKS via Helm | `true` |
+| `datadog_api_key` | Datadog API key. Pass via `TF_VAR_datadog_api_key` | `null` |
+| `datadog_site` | Datadog site used by the Agent | `datadoghq.com` |
+| `datadog_namespace` | Namespace for Datadog Agent | `datadog` |
+| `datadog_release_name` | Helm release name for Datadog Agent | `datadog-agent` |
 | `api_namespace` · `api_service_name` · `api_service_port` | How the NLB is located | `mechanics-software` · `mechanics-software-api` · `8080` |
 | `gateway_key` | Optional `X-Gateway-Key` secret. Pass via `TF_VAR_gateway_key` | `""` |
 | `auth_lambda_name` | Lambda exposed at `POST /auth`. Empty skips the route | `""` |
@@ -124,6 +132,7 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `api_gateway_url` | Public base URL of the platform |
 | `api_gateway_log_group` | CloudWatch group with gateway access logs |
 | `cluster_name` · `cluster_region` · `kubeconfig_command` | Cluster access |
+| `datadog_release_name` · `datadog_namespace` · `datadog_release_status` | Datadog deployment status |
 
 ## Design notes
 
@@ -159,6 +168,25 @@ replaced it once the account was confirmed to allow one.
 GitHub Actions pipeline:
 - `terraform fmt` + `validate` + `plan` on every PR
 - `terraform apply` on merge to `main`
+
+Datadog settings are configurable from the repository pipeline without editing Terraform files.
+
+Configure in GitHub repository settings:
+
+- **Secrets and variables -> Actions -> Secrets**
+  - `DATADOG_API_KEY` (required to enable Datadog in CI/CD)
+- **Secrets and variables -> Actions -> Variables** (optional)
+  - `ENABLE_DATADOG` (`true`/`false`, default: `true` when API key exists, otherwise forced to `false`)
+  - `DATADOG_SITE` (default: `datadoghq.com`)
+  - `DATADOG_NAMESPACE` (default: `datadog`)
+  - `DATADOG_RELEASE_NAME` (default: `datadog-agent`)
+
+The workflow exports these values as `TF_VAR_*` automatically:
+- `TF_VAR_datadog_api_key`
+- `TF_VAR_enable_datadog`
+- `TF_VAR_datadog_site`
+- `TF_VAR_datadog_namespace`
+- `TF_VAR_datadog_release_name`
 
 ## Related Repositories
 

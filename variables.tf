@@ -50,3 +50,39 @@ variable "auth_lambda_name" {
   type        = string
   default     = ""
 }
+
+variable "enable_datadog" {
+  description = "Install Datadog Agent via Helm after the EKS cluster is available"
+  type        = bool
+  default     = true
+}
+
+variable "datadog_api_key" {
+  description = "Datadog API key. Supply via TF_VAR_datadog_api_key, never in a committed file."
+  type        = string
+  sensitive   = true
+  default     = null
+
+  validation {
+    condition     = !var.enable_datadog || (var.datadog_api_key != null && length(trimspace(var.datadog_api_key)) > 0)
+    error_message = "datadog_api_key must be provided when enable_datadog is true."
+  }
+}
+
+variable "datadog_site" {
+  description = "Datadog site used by the Agent"
+  type        = string
+  default     = "datadoghq.com"
+}
+
+variable "datadog_namespace" {
+  description = "Namespace where the Datadog Agent is installed"
+  type        = string
+  default     = "datadog"
+}
+
+variable "datadog_release_name" {
+  description = "Helm release name for the Datadog Agent"
+  type        = string
+  default     = "datadog-agent"
+}

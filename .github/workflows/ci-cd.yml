@@ -8,6 +8,11 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  TF_VAR_datadog_api_key: ${{ secrets.DATADOG_API_KEY }}
+  TF_VAR_enable_datadog: ${{ secrets.DATADOG_API_KEY != '' && (vars.ENABLE_DATADOG || 'true') || 'false' }}
+  TF_VAR_datadog_site: ${{ vars.DATADOG_SITE || 'datadoghq.com' }}
+  TF_VAR_datadog_namespace: ${{ vars.DATADOG_NAMESPACE || 'datadog' }}
+  TF_VAR_datadog_release_name: ${{ vars.DATADOG_RELEASE_NAME || 'datadog-agent' }}
 
 jobs:
   validate:
@@ -70,8 +75,16 @@ jobs:
         run: terraform init
         working-directory: .
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false
+      - name: Terraform Apply (Base + Optional Datadog)
+        shell: bash
+        run: |
+          terraform apply -auto-approve -input=false -var="enable_datadog=false"
+
+          if [ "${TF_VAR_enable_datadog}" = "true" ]; then
+            terraform apply -auto-approve -input=false
+          else
+            echo "Datadog disabled, skipping second apply."
+          fi
         working-directory: .
 
       - name: Print cluster name
