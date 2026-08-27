@@ -22,3 +22,13 @@ output "api_gateway_log_group" {
   description = "CloudWatch log group with the gateway access logs"
   value       = one(module.apigateway[*].log_group_name)
 }
+
+output "api_gateway_authorizer_id" {
+  description = "Lambda authorizer guarding the protected routes — empty when authorizer_lambda_name is unset"
+  value       = one(module.apigateway[*].authorizer_id)
+}
+
+output "api_gateway_public_routes" {
+  description = "Routes deliberately reachable without a token"
+  value       = one(module.apigateway[*].public_route_keys)
+}

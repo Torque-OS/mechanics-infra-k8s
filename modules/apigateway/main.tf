@@ -1,9 +1,12 @@
 locals {
   auth_lambda_enabled = var.auth_lambda_name != ""
+  authorizer_enabled  = var.authorizer_lambda_name != ""
 
   gateway_key_header = var.gateway_key != "" ? {
     "overwrite:header.X-Gateway-Key" = var.gateway_key
   } : {}
+
+  public_routes = local.authorizer_enabled ? toset(var.public_routes) : toset([])
 }
 
 resource "aws_apigatewayv2_api" "this" {
@@ -42,10 +45,53 @@ resource "aws_apigatewayv2_integration" "eks" {
   request_parameters = local.gateway_key_header
 }
 
+data "aws_lambda_function" "authorizer" {
+  count         = local.authorizer_enabled ? 1 : 0
+  function_name = var.authorizer_lambda_name
+}
+
+resource "aws_apigatewayv2_authorizer" "jwt" {
+  count = local.authorizer_enabled ? 1 : 0
+
+  api_id           = aws_apigatewayv2_api.this.id
+  name             = "${var.api_name}-jwt"
+  authorizer_type  = "REQUEST"
+  authorizer_uri   = data.aws_lambda_function.authorizer[0].invoke_arn
+  identity_sources = ["$request.header.Authorization"]
+
+  authorizer_payload_format_version = "2.0"
+  enable_simple_responses           = true
+
+  authorizer_result_ttl_in_seconds = var.authorizer_cache_ttl_seconds
+}
+
+resource "aws_lambda_permission" "authorizer" {
+  count = local.authorizer_enabled ? 1 : 0
+
+  statement_id  = "AllowInvokeFromApiGatewayAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = data.aws_lambda_function.authorizer[0].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/authorizers/${aws_apigatewayv2_authorizer.jwt[0].id}"
+}
+
 resource "aws_apigatewayv2_route" "proxy" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = "ANY /{proxy+}"
   target    = "integrations/${aws_apigatewayv2_integration.eks.id}"
+
+  authorization_type = local.authorizer_enabled ? "CUSTOM" : "NONE"
+  authorizer_id      = local.authorizer_enabled ? aws_apigatewayv2_authorizer.jwt[0].id : null
+}
+
+resource "aws_apigatewayv2_route" "public" {
+  for_each = local.public_routes
+
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.eks.id}"
+
+  authorization_type = "NONE"
 }
 
 data "aws_lambda_function" "auth" {
