@@ -25,12 +25,17 @@ Client (internet)
   │
   └─→ API Gateway (HTTP API) ─────────────── the only public address
         │
-        ├─ POST /auth      ──→ Lambda (CPF → JWT)
+        ├─ POST /auth           ──→ Lambda (CPF → JWT)          no authorizer
+        ├─ GET  /health         ──→ VPC Link                    no authorizer
+        ├─ POST /api/auth/login ──→ VPC Link                    no authorizer
         │
-        └─ ANY /{proxy+}   ──→ VPC Link
-                                  │
-AWS Region (us-east-1)            │  private, no route from the internet
-└── VPC                           ▼
+        └─ ANY  /{proxy+}       ──→ Lambda authorizer (JWT)
+                                          │ allow
+                                          ▼
+                                       VPC Link
+                                          │
+AWS Region (us-east-1)                    │  private, no route from the internet
+└── VPC                                   ▼
     ├── Public Subnets  ──→ NAT Gateway
     └── Private Subnets ──→ internal NLB :8080
                                └── EKS Node Group
@@ -123,6 +128,9 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `api_namespace` · `api_service_name` · `api_service_port` | How the NLB is located | `mechanics-software` · `mechanics-software-api` · `8080` |
 | `gateway_key` | Optional `X-Gateway-Key` secret. Pass via `TF_VAR_gateway_key` | `""` |
 | `auth_lambda_name` | Lambda exposed at `POST /auth`. Empty skips the route | `""` |
+| `authorizer_lambda_name` | Lambda that authorizes protected routes. Empty leaves every route open | `""` |
+| `authorizer_cache_ttl_seconds` | How long a verdict is cached per token. `0` invokes on every request | `300` |
+| `public_routes` | Routes that bypass the authorizer | `GET /health`, `POST /api/auth/login` |
 
 
 ## Outputs
@@ -131,6 +139,8 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 |--------|-------------|
 | `api_gateway_url` | Public base URL of the platform |
 | `api_gateway_log_group` | CloudWatch group with gateway access logs |
+| `api_gateway_authorizer_id` | Lambda authorizer guarding the protected routes |
+| `api_gateway_public_routes` | Routes deliberately reachable without a token |
 | `cluster_name` · `cluster_region` · `kubeconfig_command` | Cluster access |
 | `datadog_release_name` · `datadog_namespace` · `datadog_release_status` | Datadog deployment status |
 
@@ -147,6 +157,24 @@ The alternative, integrating against a public load balancer over a shared secret
 header, leaves the load balancer answering TCP connections from anywhere and moves
 enforcement into the application. That was the original approach here; the VPC Link
 replaced it once the account was confirmed to allow one.
+
+### Why a REQUEST authorizer and not the native JWT one
+
+The HTTP API ships a built-in JWT authorizer, but it only speaks OIDC: it discovers
+the signing keys from a JWKS endpoint and therefore requires asymmetric keys. The
+platform signs HS256 with a secret shared between `mechanics-lambda` and
+`mechanics-software`, so verification has to run in a Lambda we control.
+
+The authorizer is deliberately the *outer* of two gates — the application revalidates
+the same token and enforces roles on top of it. The gateway answers a plain 401 for
+anything unsigned, expired or foreign, which keeps that traffic off the cluster
+entirely; anything finer grained than "is this token real" belongs to the API.
+
+### Ordering constraint
+
+`authorizer_lambda_name` is resolved through `data "aws_lambda_function"`, which fails
+the plan if the function does not exist. `mechanics-lambda` deploys both functions on
+merge to `main`, so that repo has to land **before** this one is applied.
 
 ## AWS Academy notes
 

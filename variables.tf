@@ -82,3 +82,15 @@ variable "datadog_release_name" {
   type        = string
   default     = "datadog-agent"
 }
+
+variable "authorizer_lambda_name" {
+  description = "Name of the deployed Lambda that authorizes protected routes. Both this and the function itself come from mechanics-lambda, which must be deployed before this is applied. Empty leaves every route open."
+  type        = string
+  default     = ""
+}
+
+variable "authorizer_cache_ttl_seconds" {
+  description = "How long API Gateway caches an authorizer verdict for a given token. Zero invokes the Lambda on every request."
+  type        = number
+  default     = 300
+}

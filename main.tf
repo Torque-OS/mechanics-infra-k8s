@@ -77,6 +77,9 @@ module "apigateway" {
   nlb_listener_arn = data.aws_lb_listener.api[0].arn
   auth_lambda_name = var.auth_lambda_name
 
+  authorizer_lambda_name       = var.authorizer_lambda_name
+  authorizer_cache_ttl_seconds = var.authorizer_cache_ttl_seconds
+
   vpc_link_subnet_ids         = module.kubernetes.private_subnet_ids
   vpc_link_security_group_ids = [aws_security_group.vpc_link[0].id]
 
