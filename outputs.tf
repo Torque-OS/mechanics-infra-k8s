@@ -36,8 +36,8 @@ output "datadog_namespace" {
 output "datadog_release_status" {
   description = "Status of the Datadog Helm release"
   value       = try(one(module.datadog[*].release_status), null)
-}    
-    
+}
+
 output "api_gateway_authorizer_id" {
   description = "Lambda authorizer guarding the protected routes — empty when authorizer_lambda_name is unset"
   value       = one(module.apigateway[*].authorizer_id)
