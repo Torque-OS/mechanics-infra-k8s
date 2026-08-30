@@ -71,4 +71,14 @@ resource "helm_release" "datadog_agent" {
     name  = "datadog.prometheusScrape.podAnnotations"
     value = "true"
   }
+
+  set {
+    name  = "datadog.logs.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "datadog.logs.containerCollectAll"
+    value = "true"
+  }
 }
