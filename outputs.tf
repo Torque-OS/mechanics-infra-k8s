@@ -23,6 +23,21 @@ output "api_gateway_log_group" {
   value       = one(module.apigateway[*].log_group_name)
 }
 
+output "datadog_release_name" {
+  description = "Datadog Helm release name"
+  value       = try(one(module.datadog[*].release_name), null)
+}
+
+output "datadog_namespace" {
+  description = "Namespace where Datadog Agent runs"
+  value       = try(one(module.datadog[*].namespace), null)
+}
+
+output "datadog_release_status" {
+  description = "Status of the Datadog Helm release"
+  value       = try(one(module.datadog[*].release_status), null)
+}
+
 output "api_gateway_authorizer_id" {
   description = "Lambda authorizer guarding the protected routes — empty when authorizer_lambda_name is unset"
   value       = one(module.apigateway[*].authorizer_id)
