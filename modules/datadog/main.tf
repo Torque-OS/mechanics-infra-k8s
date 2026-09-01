@@ -81,4 +81,19 @@ resource "helm_release" "datadog_agent" {
     name  = "datadog.logs.containerCollectAll"
     value = "true"
   }
+
+  set {
+    name  = "datadog.apm.instrumentation.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "datadog.apm.instrumentation.targets[0].name"
+    value = "default-target"
+  }
+
+  set {
+    name  = "datadog.apm.instrumentation.targets[0].ddTraceVersions.dotnet"
+    value = "3"
+  }
 }
