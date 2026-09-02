@@ -88,12 +88,12 @@ resource "helm_release" "datadog_agent" {
   }
 
   set {
-    name  = "datadog.apm.instrumentation.targets[0].language"
-    value = "dotnet"
+    name  = "datadog.apm.instrumentation.targets[0].name"
+    value = "default-target"
   }
 
   set {
-    name  = "datadog.apm.instrumentation.targets[0].ddTraceVersion"
+    name  = "datadog.apm.instrumentation.targets[0].ddTraceVersions.dotnet"
     value = "3"
   }
 }
