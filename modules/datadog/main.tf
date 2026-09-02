@@ -95,5 +95,6 @@ resource "helm_release" "datadog_agent" {
   set {
     name  = "datadog.apm.instrumentation.targets[0].ddTraceVersion"
     value = "3"
+    type  = "string"
   }
 }
