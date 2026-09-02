@@ -30,8 +30,10 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
-  cluster_name    = var.cluster_name
-  cluster_version = "1.35"
+  cluster_name                = var.cluster_name
+  cluster_version             = "1.35"
+  create_cloudwatch_log_group = false
+  cluster_encryption_config   = {}
 
   cluster_endpoint_public_access = true
 
