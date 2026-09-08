@@ -194,20 +194,34 @@ merge to `main`, so that repo has to land **before** this one is applied.
 ## CI/CD
 
 GitHub Actions pipeline:
-- `terraform fmt` + `validate` + `plan` on every PR
-- `terraform apply` on merge to `main`
+- `terraform fmt` + `validate` + `plan` on every PR — the plan always forces
+  `enable_datadog=false` and `enable_api_gateway=false`, so PR validation never
+  depends on secrets or on infrastructure created outside this repo.
+- `terraform apply` on merge to `main`, in stages:
+  1. baseline apply with both toggles forced `false`
+  2. Datadog Helm install, only if `enable_datadog` resolves to `true`
+  3. API Gateway apply, only if `enable_api_gateway` resolves to `true`
 
-Datadog settings are configurable from the repository pipeline without editing Terraform files.
+Datadog and API Gateway settings are configurable from the repository pipeline
+without editing Terraform files.
 
 Configure in GitHub repository settings:
 
 - **Secrets and variables -> Actions -> Secrets**
   - `DATADOG_API_KEY` (required to enable Datadog in CI/CD)
+  - `GATEWAY_KEY` (optional, see [Optional: the defence-in-depth header](#optional-the-defence-in-depth-header))
 - **Secrets and variables -> Actions -> Variables** (optional)
   - `ENABLE_DATADOG` (`true`/`false`, default: `true` when API key exists, otherwise forced to `false`)
   - `DATADOG_SITE` (default: `datadoghq.com`)
   - `DATADOG_NAMESPACE` (default: `datadog`)
   - `DATADOG_RELEASE_NAME` (default: `datadog-agent`)
+  - `ENABLE_API_GATEWAY` (`true`/`false`, default: `false`) — flip to `true` only
+    once `mechanics-lambda` is deployed **and** the `mechanics-software-api`
+    Service has an NLB with healthy targets (see [Usage](#usage)). Turning it on
+    before that exists fails the apply, because the NLB and Lambda lookups have
+    nothing to find yet.
+  - `AUTH_LAMBDA_NAME` — name of the CPF auth Lambda exposed at `POST /auth`
+  - `AUTHORIZER_LAMBDA_NAME` — name of the Lambda authorizer guarding protected routes
 
 The workflow exports these values as `TF_VAR_*` automatically:
 - `TF_VAR_datadog_api_key`
@@ -215,6 +229,13 @@ The workflow exports these values as `TF_VAR_*` automatically:
 - `TF_VAR_datadog_site`
 - `TF_VAR_datadog_namespace`
 - `TF_VAR_datadog_release_name`
+- `TF_VAR_enable_api_gateway`
+- `TF_VAR_auth_lambda_name`
+- `TF_VAR_authorizer_lambda_name`
+- `TF_VAR_gateway_key`
+
+Once `ENABLE_API_GATEWAY` is `true`, every subsequent merge to `main` keeps the
+gateway applied — there is no need to flip it back after the first successful run.
 
 ## Related Repositories
 

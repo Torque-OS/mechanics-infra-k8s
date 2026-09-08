@@ -13,6 +13,10 @@ env:
   TF_VAR_datadog_site: ${{ vars.DATADOG_SITE || 'datadoghq.com' }}
   TF_VAR_datadog_namespace: ${{ vars.DATADOG_NAMESPACE || 'datadog' }}
   TF_VAR_datadog_release_name: ${{ vars.DATADOG_RELEASE_NAME || 'datadog-agent' }}
+  TF_VAR_enable_api_gateway: ${{ vars.ENABLE_API_GATEWAY || 'false' }}
+  TF_VAR_auth_lambda_name: ${{ vars.AUTH_LAMBDA_NAME || '' }}
+  TF_VAR_authorizer_lambda_name: ${{ vars.AUTHORIZER_LAMBDA_NAME || '' }}
+  TF_VAR_gateway_key: ${{ secrets.GATEWAY_KEY }}
 
 jobs:
   validate:
@@ -47,7 +51,7 @@ jobs:
         working-directory: .
 
       - name: Terraform Plan
-        run: terraform plan -no-color -input=false -var="enable_datadog=false"
+        run: terraform plan -no-color -input=false -var="enable_datadog=false" -var="enable_api_gateway=false"
         working-directory: .
 
   apply:
@@ -76,7 +80,7 @@ jobs:
         working-directory: .
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false -var="enable_datadog=false"
+        run: terraform apply -auto-approve -input=false -var="enable_datadog=false" -var="enable_api_gateway=false"
         working-directory: .
 
       - name: Terraform Apply - Install Datadog via Helm
@@ -84,6 +88,16 @@ jobs:
         run: terraform apply -auto-approve -input=false -var="enable_datadog=true"
         working-directory: .
 
+      - name: Terraform Apply - Enable API Gateway
+        if: env.TF_VAR_enable_api_gateway == 'true'
+        run: terraform apply -auto-approve -input=false -var="enable_api_gateway=true"
+        working-directory: .
+
       - name: Print cluster name
         run: terraform output cluster_name
+        working-directory: .
+
+      - name: Print API Gateway URL
+        if: env.TF_VAR_enable_api_gateway == 'true'
+        run: terraform output api_gateway_url
         working-directory: .
