@@ -18,6 +18,8 @@ env:
   TF_VAR_authorizer_lambda_name: ${{ vars.AUTHORIZER_LAMBDA_NAME || '' }}
   TF_VAR_gateway_key: ${{ secrets.GATEWAY_KEY }}
 
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+
 jobs:
   validate:
     name: Terraform Validate & Plan
@@ -28,7 +30,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '~> 1.7'
+          terraform_version: '~> 1.10'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,7 +41,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=mechanics-infra-k8s/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
         working-directory: .
 
       - name: Terraform Format Check
@@ -65,7 +73,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: '~> 1.7'
+          terraform_version: '~> 1.10'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -76,7 +84,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=mechanics-infra-k8s/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
         working-directory: .
 
       - name: Terraform Apply
