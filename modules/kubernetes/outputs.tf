@@ -40,3 +40,8 @@ output "node_security_group_id" {
   description = "Security group attached to the cluster nodes"
   value       = module.eks.node_security_group_id
 }
+
+output "node_group_autoscaling_group_names" {
+  description = "Auto Scaling groups behind the managed node groups, used to register nodes in the API target group."
+  value       = module.eks.eks_managed_node_groups_autoscaling_group_names
+}

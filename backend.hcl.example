@@ -1,0 +1,13 @@
+# Copy to backend.hcl (gitignored) and run:
+#   terraform init -backend-config=backend.hcl
+#
+# Create the bucket once per account, before the first init:
+#   aws s3api create-bucket --bucket <name> --region us-east-1
+#   aws s3api put-bucket-versioning --bucket <name> \
+#     --versioning-configuration Status=Enabled
+
+bucket       = "torque-os-tfstate-000000000000"
+key          = "mechanics-infra-k8s/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true
