@@ -85,12 +85,12 @@ jobs:
 
       - name: Terraform Apply - Install Datadog via Helm
         if: env.TF_VAR_enable_datadog == 'true'
-        run: terraform apply -auto-approve -input=false -var="enable_datadog=true"
+        run: terraform apply -auto-approve -input=false -var="enable_datadog=true" -var="enable_api_gateway=false"
         working-directory: .
 
       - name: Terraform Apply - Enable API Gateway
         if: env.TF_VAR_enable_api_gateway == 'true'
-        run: terraform apply -auto-approve -input=false -var="enable_api_gateway=true"
+        run: terraform apply -auto-approve -input=false -var="enable_datadog=false" -var="enable_api_gateway=true" 
         working-directory: .
 
       - name: Print cluster name
