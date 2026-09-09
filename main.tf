@@ -78,7 +78,7 @@ resource "aws_lb_listener" "api" {
 }
 
 resource "aws_autoscaling_attachment" "api" {
-  for_each = local.gateway_enabled == 1 ? toset(module.kubernetes.node_group_autoscaling_group_names) : toset([])
+  for_each = local.gateway_enabled == 1 ? module.kubernetes.node_group_autoscaling_groups : {}
 
   autoscaling_group_name = each.value
   lb_target_group_arn    = aws_lb_target_group.api[0].arn
