@@ -41,7 +41,10 @@ output "node_security_group_id" {
   value       = module.eks.node_security_group_id
 }
 
-output "node_group_autoscaling_group_names" {
-  description = "Auto Scaling groups behind the managed node groups, used to register nodes in the API target group."
-  value       = module.eks.eks_managed_node_groups_autoscaling_group_names
+output "node_group_autoscaling_groups" {
+  description = "Auto Scaling group of each managed node group, keyed by node group name. A map rather than a list because for_each needs its keys known at plan time, and the group names themselves only exist after the cluster is created."
+  value = {
+    for name, group in module.eks.eks_managed_node_groups :
+    name => one(group.node_group_autoscaling_group_names)
+  }
 }
