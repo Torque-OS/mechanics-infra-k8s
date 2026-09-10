@@ -21,13 +21,6 @@ locals {
   gateway_enabled = var.enable_api_gateway ? 1 : 0
 }
 
-# Terraform owns the load balancer rather than discovering one Kubernetes made.
-# The Service used to create it, so this configuration could not be applied until
-# the application had been deployed: a data source lookup on a resource that does
-# not exist yet fails the whole plan, and that is what forced the gateway into a
-# second apply. Owning it removes the ordering between the two repositories — the
-# gateway can be built on an empty cluster and simply answers 503 until pods are
-# ready.
 resource "aws_lb" "api" {
   count = local.gateway_enabled
 

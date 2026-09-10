@@ -1,5 +1,9 @@
 name: CI/CD — mechanics-infra-k8s
 
+concurrency:
+  group: terraform-mechanics-infra-k8s
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
