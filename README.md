@@ -42,15 +42,18 @@ AWS Region (us-east-1)                    │  private, no route from the intern
                                      └── mechanics-software pods
 ```
 
-The application is unreachable from the internet. The `mechanics-software-api`
-Service is annotated as an **internal** NLB, so its DNS name resolves only inside
-the VPC, and the gateway reaches it through a VPC Link. Being the sole entry point
-is a property of the network, not a rule the application enforces.
+The application is unreachable from the internet. The load balancer is internal, so
+its DNS name resolves only inside the VPC, and the gateway reaches it through a VPC
+Link. Being the sole entry point is a property of the network, not a rule the
+application enforces.
+
+Terraform owns the load balancer; the `mechanics-software-api` Service is a
+`NodePort` that only exposes the pods on the nodes.
 
 ## Project Structure
 
 ```
-main.tf            # Root module — cluster, NLB lookup, VPC Link plumbing
+main.tf            # Root module — cluster, load balancer, VPC Link plumbing
 variables.tf
 outputs.tf
 providers.tf
@@ -84,8 +87,8 @@ terraform output api_gateway_url
 Terraform owns the load balancer, so nothing here waits for the application. The
 gateway answers 503 until pods are ready.
 
-Provisioning the VPC Link takes **10–15 minutes**; the apply will appear to hang on
-that resource.
+A full apply on an empty account takes around **15 minutes**, most of it waiting on
+the EKS control plane.
 
 **2. Deploy the application** from the `mechanics-software` repo, in any order:
 
@@ -148,10 +151,9 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 
 ### Single entry point
 
-The gateway reaches the cluster over a **VPC Link** into an **internal NLB**. The
-Service must be an NLB — HTTP API private integrations cannot target the Classic
-Load Balancer EKS would otherwise create — and internal, so it has no public
-address at all.
+The gateway reaches the cluster over a **VPC Link** into an **internal NLB**. It has
+to be an NLB — HTTP API private integrations cannot target an Application Load
+Balancer — and internal, so it has no public address at all.
 
 The alternative, integrating against a public load balancer over a shared secret
 header, leaves the load balancer answering TCP connections from anywhere and moves
@@ -187,20 +189,23 @@ builds everything, in any order.
 the plan if the function does not exist. `mechanics-lambda` deploys both functions on
 merge to `main`, so that repo has to land **before** this one is applied.
 
-## AWS Academy notes
+## Notes
 
-- Session credentials expire every ~4h. Refresh `~/.aws/credentials` with the block
-  from **AWS Details → AWS CLI**, including `aws_session_token`, before any
-  `terraform` command.
 - Everything is pinned to `us-east-1`.
-- **Delete the application before destroying.** The NLB belongs to Kubernetes, not
-  to Terraform, and `terraform destroy` will fail on `DependencyViolation` while it
-  still exists:
+- `terraform destroy` takes the load balancer with it. It used to belong to
+  Kubernetes, which meant the application had to be deleted first or the destroy
+  failed on `DependencyViolation`; now that Terraform owns it, one command is enough.
+- **Detach `mechanics-lambda` from the VPC before destroying**, if it was attached so
+  the CPF login could reach the RDS. Its network interfaces hold the subnets, and the
+  destroy fails on `DependencyViolation` while they exist:
 
   ```bash
-  kubectl delete -f k8s/
-  terraform destroy
+  aws lambda update-function-configuration --function-name mechanics-lambda \
+    --vpc-config "SubnetIds=[],SecurityGroupIds=[]"
   ```
+
+  Only the CPF login function needs the VPC. The authorizer verifies signatures and
+  reads nothing, so attaching it would only add cold start latency to every request.
 
 ## CI/CD
 
