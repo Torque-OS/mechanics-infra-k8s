@@ -63,7 +63,7 @@ jobs:
         working-directory: .
 
       - name: Terraform Plan
-        run: terraform plan -no-color -input=false -var="enable_datadog=false"
+        run: terraform plan -no-color -input=false -target=module.kubernetes -var="enable_datadog=false"
         working-directory: .
 
   apply:
@@ -98,11 +98,10 @@ jobs:
         working-directory: .
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -input=false -var="enable_datadog=false"
+        run: terraform apply -auto-approve -input=false -target=module.kubernetes -var="enable_datadog=false"
         working-directory: .
 
-      - name: Terraform Apply - Install Datadog via Helm
-        if: env.TF_VAR_enable_datadog == 'true'
+      - name: Terraform Apply - Remaining infrastructure
         run: terraform apply -auto-approve -input=false
         working-directory: .
 
