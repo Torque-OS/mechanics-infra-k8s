@@ -83,23 +83,17 @@ resource "helm_release" "datadog_agent" {
   }
 
   set {
-    name  = "datadog.apm.instrumentation.enabled"
+    name  = "datadog.apm.enabled"
     value = "true"
-  }
-
-  set {
-    name  = "datadog.apm.instrumentation.targets[0].name"
-    value = "default-target"
-  }
-
-  set {
-    name  = "datadog.apm.instrumentation.targets[0].ddTraceVersions.dotnet"
-    value = "3"
-    type  = "string"
   }
 
   set {
     name  = "datadog.otlp.receiver.protocols.http.enabled"
     value = "true"
+  }
+
+  set {
+    name  = "datadog.otlp.receiver.protocols.http.endpoint"
+    value = "0.0.0.0:4318"
   }
 }
