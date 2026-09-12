@@ -97,4 +97,9 @@ resource "helm_release" "datadog_agent" {
     value = "3"
     type  = "string"
   }
+
+  set {
+    name  = "datadog.otlp.receiver.protocols.http.enabled"
+    value = "true"
+  }
 }
