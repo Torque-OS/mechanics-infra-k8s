@@ -12,24 +12,18 @@ variable "aws_region" {
 
 variable "enable_api_gateway" {
   description = <<-EOT
-    Provision the API Gateway. Keep it false on the first apply: the private
-    integration targets the load balancer that the mechanics-software-api
-    Service creates, so the cluster and the Service must exist first.
+    Provision the API Gateway and the internal load balancer behind it. Safe on a
+    clean cluster: Terraform owns the load balancer, so nothing here waits for the
+    application to be deployed. The gateway answers 503 until pods are ready.
   EOT
   type        = bool
-  default     = false
+  default     = true
 }
 
-variable "api_namespace" {
-  description = "Namespace of the application Service"
-  type        = string
-  default     = "mechanics-software"
-}
-
-variable "api_service_name" {
-  description = "Name of the application Service whose load balancer the gateway targets"
-  type        = string
-  default     = "mechanics-software-api"
+variable "api_node_port" {
+  description = "NodePort the mechanics-software-api Service is pinned to. The target group forwards here, and the node security group already allows the 30000-32767 range from inside the VPC."
+  type        = number
+  default     = 30080
 }
 
 variable "api_service_port" {
@@ -84,9 +78,14 @@ variable "datadog_release_name" {
 }
 
 variable "authorizer_lambda_name" {
-  description = "Name of the deployed Lambda that authorizes protected routes. Both this and the function itself come from mechanics-lambda, which must be deployed before this is applied. Empty leaves every route open."
+  description = "Name of the deployed Lambda that authorizes protected routes. Comes from mechanics-lambda, which must be deployed before this is applied."
   type        = string
   default     = ""
+
+  validation {
+    condition     = !var.enable_api_gateway || trimspace(var.authorizer_lambda_name) != ""
+    error_message = "enable_api_gateway requires authorizer_lambda_name. Leaving it empty publishes a gateway with no authorizer, so every route would be reachable without a token. Deploy mechanics-lambda first."
+  }
 }
 
 variable "authorizer_cache_ttl_seconds" {

@@ -19,23 +19,62 @@ module "datadog" {
 
 locals {
   gateway_enabled = var.enable_api_gateway ? 1 : 0
-
-  service_tag = "${var.api_namespace}/${var.api_service_name}"
 }
 
-data "aws_lb" "api" {
+resource "aws_lb" "api" {
   count = local.gateway_enabled
 
+  name               = "${var.cluster_name}-api"
+  internal           = true
+  load_balancer_type = "network"
+  subnets            = module.kubernetes.private_subnet_ids
+
   tags = {
-    "kubernetes.io/service-name" = local.service_tag
+    Project = var.cluster_name
   }
 }
 
-data "aws_lb_listener" "api" {
+resource "aws_lb_target_group" "api" {
   count = local.gateway_enabled
 
-  load_balancer_arn = data.aws_lb.api[0].arn
+  name        = "${var.cluster_name}-api"
+  vpc_id      = module.kubernetes.vpc_id
+  target_type = "instance"
+  port        = var.api_node_port
+  protocol    = "TCP"
+
+  health_check {
+    protocol            = "HTTP"
+    path                = "/health"
+    port                = "traffic-port"
+    interval            = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Project = var.cluster_name
+  }
+}
+
+resource "aws_lb_listener" "api" {
+  count = local.gateway_enabled
+
+  load_balancer_arn = aws_lb.api[0].arn
   port              = var.api_service_port
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api[0].arn
+  }
+}
+
+resource "aws_autoscaling_attachment" "api" {
+  for_each = local.gateway_enabled == 1 ? module.kubernetes.node_group_autoscaling_groups : {}
+
+  autoscaling_group_name = each.value
+  lb_target_group_arn    = aws_lb_target_group.api[0].arn
 }
 
 resource "aws_security_group" "vpc_link" {
@@ -74,7 +113,7 @@ module "apigateway" {
   source = "./modules/apigateway"
 
   api_name         = var.cluster_name
-  nlb_listener_arn = data.aws_lb_listener.api[0].arn
+  nlb_listener_arn = aws_lb_listener.api[0].arn
   auth_lambda_name = var.auth_lambda_name
 
   authorizer_lambda_name       = var.authorizer_lambda_name
