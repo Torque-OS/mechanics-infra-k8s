@@ -17,6 +17,23 @@ module "datadog" {
   depends_on = [module.kubernetes]
 }
 
+module "rabbitmq" {
+  count  = var.enable_rabbitmq ? 1 : 0
+  source = "./modules/rabbitmq"
+
+  release_name         = var.rabbitmq_release_name
+  namespace            = var.rabbitmq_namespace
+  chart_version        = var.rabbitmq_chart_version
+  storage_class        = var.rabbitmq_storage_class
+  storage_size         = var.rabbitmq_storage_size
+  rabbitmq_users       = var.rabbitmq_users
+  rabbitmq_vhosts      = var.rabbitmq_vhosts
+  rabbitmq_permissions = var.rabbitmq_permissions
+  cluster_name         = module.kubernetes.cluster_name
+
+  depends_on = [module.kubernetes]
+}
+
 locals {
   gateway_enabled = var.enable_api_gateway ? 1 : 0
 }

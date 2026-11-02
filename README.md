@@ -14,8 +14,9 @@ Provisions the AWS networking, the EKS cluster that runs the main application, a
 
 - **IaC:** Terraform
 - **Cloud:** AWS (VPC, EKS, IAM, API Gateway v2, VPC Link, CloudWatch)
-- **Observability:** Datadog Agent via Helm
-- **Modules:** `terraform-aws-modules/vpc/aws` · `terraform-aws-modules/eks/aws`
+- **Observability:** Datadog Agent via Helm, RabbitMQ Prometheus metrics
+- **Messaging:** RabbitMQ via the Bitnami Helm chart, with service-scoped users/vhosts
+- **Modules:** `terraform-aws-modules/vpc/aws` · `terraform-aws-modules/eks/aws` · Bitnami RabbitMQ
 - **CI/CD:** GitHub Actions
 
 ## Architecture
@@ -61,6 +62,9 @@ modules/
   kubernetes/      # VPC + EKS cluster + node group + addons
   datadog/         # Datadog Agent Helm release (pods, CPU, memory metrics)
   apigateway/      # HTTP API, VPC Link, routes, stage, access logs
+  rabbitmq/        # RabbitMQ Helm release, persistence, users/vhosts and metrics
+docker-compose.yml # Local RabbitMQ for development
+docker/rabbitmq/   # Local RabbitMQ definitions
 ```
 
 ## Usage
@@ -83,6 +87,24 @@ export TF_VAR_datadog_api_key="<your-datadog-api-key>"
 terraform apply
 terraform output api_gateway_url
 ```
+
+RabbitMQ is installed in the `messaging` namespace by default. Its service is
+internal-only (`ClusterIP`), uses an EBS-backed PVC, and exposes Prometheus
+metrics on port `15692`. Datadog discovers those metrics through pod annotations.
+Passwords and the `rabbitmq_users` map must be supplied through Terraform
+variables in real environments; replace the `change-me-*` defaults before any
+non-local apply.
+
+For local development:
+
+```bash
+docker compose up -d rabbitmq
+docker compose ps
+```
+
+The local broker is available at `amqp://localhost:5672`, management UI at
+`http://localhost:15672`, and Prometheus metrics at `http://localhost:15692/metrics`.
+The Compose definitions intentionally use development-only credentials.
 
 Terraform owns the load balancer, so nothing here waits for the application. The
 gateway answers 503 until pods are ready.
@@ -128,6 +150,12 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `datadog_site` | Datadog site used by the Agent | `datadoghq.com` |
 | `datadog_namespace` | Namespace for Datadog Agent | `datadog` |
 | `datadog_release_name` | Helm release name for Datadog Agent | `datadog-agent` |
+| `enable_rabbitmq` | Install RabbitMQ on EKS via Helm | `true` |
+| `rabbitmq_namespace` | Namespace for RabbitMQ | `messaging` |
+| `rabbitmq_chart_version` | Pinned Bitnami RabbitMQ chart version | `15.5.0` |
+| `rabbitmq_storage_class` · `rabbitmq_storage_size` | Persistent storage settings | `gp3` · `8Gi` |
+| `rabbitmq_users` | Service users and passwords. Pass via `TF_VAR_rabbitmq_users` | service defaults; change for real deployments |
+| `rabbitmq_vhosts` · `rabbitmq_permissions` | Service vhosts and access rules | `/os`, `/billing`, `/execution` |
 | `api_service_port` · `api_node_port` | Listener port and the NodePort it forwards to | `8080` · `30080` |
 | `gateway_key` | Optional `X-Gateway-Key` secret. Pass via `TF_VAR_gateway_key` | `""` |
 | `auth_lambda_name` | Lambda exposed at `POST /auth`. Empty skips the route | `""` |
@@ -146,6 +174,7 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `api_gateway_public_routes` | Routes deliberately reachable without a token |
 | `cluster_name` · `cluster_region` · `kubeconfig_command` | Cluster access |
 | `datadog_release_name` · `datadog_namespace` · `datadog_release_status` | Datadog deployment status |
+| `rabbitmq_namespace` · `rabbitmq_amqp_endpoint` · `rabbitmq_management_endpoint` | RabbitMQ deployment endpoints |
 
 ## Design notes
 
