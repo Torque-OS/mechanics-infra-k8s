@@ -95,6 +95,10 @@ Passwords and the `rabbitmq_users` map must be supplied through Terraform
 variables in real environments; replace the `change-me-*` defaults before any
 non-local apply.
 
+In GitHub Actions, create the `RABBITMQ_USERS` repository secret with the JSON
+map expected by Terraform. The optional `ENABLE_RABBITMQ` repository variable
+controls whether the Helm release is installed and defaults to `true`.
+
 For local development:
 
 ```bash
@@ -154,7 +158,7 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `rabbitmq_namespace` | Namespace for RabbitMQ | `messaging` |
 | `rabbitmq_chart_version` | Pinned Bitnami RabbitMQ chart version | `15.5.0` |
 | `rabbitmq_storage_class` · `rabbitmq_storage_size` | Persistent storage settings | `gp3` · `8Gi` |
-| `rabbitmq_users` | Service users and passwords. Pass via `TF_VAR_rabbitmq_users` | service defaults; change for real deployments |
+| `rabbitmq_users` | Service users and passwords. Pass via `TF_VAR_rabbitmq_users` or the GitHub `RABBITMQ_USERS` secret | service defaults; change for real deployments |
 | `rabbitmq_vhosts` · `rabbitmq_permissions` | Service vhosts and access rules | `/os`, `/billing`, `/execution` |
 | `api_service_port` · `api_node_port` | Listener port and the NodePort it forwards to | `8080` · `30080` |
 | `gateway_key` | Optional `X-Gateway-Key` secret. Pass via `TF_VAR_gateway_key` | `""` |
