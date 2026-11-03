@@ -23,7 +23,7 @@ module "rabbitmq" {
 
   release_name         = var.rabbitmq_release_name
   namespace            = var.rabbitmq_namespace
-  chart_version        = var.rabbitmq_chart_version
+  image                = var.rabbitmq_image
   storage_class        = var.rabbitmq_storage_class
   storage_size         = var.rabbitmq_storage_size
   rabbitmq_users       = var.rabbitmq_users

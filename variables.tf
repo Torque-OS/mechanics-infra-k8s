@@ -78,7 +78,7 @@ variable "datadog_release_name" {
 }
 
 variable "enable_rabbitmq" {
-  description = "Install RabbitMQ on EKS via the Bitnami Helm chart"
+  description = "Install RabbitMQ on EKS via Kubernetes resources"
   type        = bool
   default     = true
 }
@@ -95,10 +95,10 @@ variable "rabbitmq_namespace" {
   default     = "messaging"
 }
 
-variable "rabbitmq_chart_version" {
-  description = "Pinned Bitnami RabbitMQ chart version"
+variable "rabbitmq_image" {
+  description = "RabbitMQ container image"
   type        = string
-  default     = "15.5.0"
+  default     = "rabbitmq:4.1-management"
 }
 
 variable "rabbitmq_storage_class" {
@@ -120,30 +120,16 @@ variable "rabbitmq_users" {
     tags     = optional(string, "")
   }))
   sensitive = true
-  default = {
-    os-service = {
-      password = "change-me-os-service"
-      tags     = ""
-    }
-    billing-service = {
-      password = "change-me-billing-service"
-      tags     = ""
-    }
-    execution-service = {
-      password = "change-me-execution-service"
-      tags     = ""
-    }
-  }
 }
 
 variable "rabbitmq_vhosts" {
-  description = "RabbitMQ vhosts to create, keyed by service"
+  description = "RabbitMQ vhosts to create and share across services"
   type        = set(string)
-  default     = ["/os", "/billing", "/execution"]
+  default     = ["/torque-os"]
 }
 
 variable "rabbitmq_permissions" {
-  description = "RabbitMQ permissions keyed as user/vhost pairs"
+  description = "RabbitMQ permissions for service users on the shared vhost"
   type = list(object({
     user      = string
     vhost     = string
@@ -152,9 +138,9 @@ variable "rabbitmq_permissions" {
     read      = string
   }))
   default = [
-    { user = "os-service", configure = ".*", write = ".*", read = ".*", vhost = "/os" },
-    { user = "billing-service", configure = ".*", write = ".*", read = ".*", vhost = "/billing" },
-    { user = "execution-service", configure = ".*", write = ".*", read = ".*", vhost = "/execution" },
+    { user = "os-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
+    { user = "billing-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
+    { user = "execution-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
   ]
 }
 

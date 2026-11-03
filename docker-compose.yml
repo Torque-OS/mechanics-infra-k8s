@@ -1,6 +1,6 @@
 services:
   rabbitmq:
-    image: rabbitmq:3.13-management
+    image: rabbitmq:4.1-management
     hostname: rabbitmq
     restart: unless-stopped
     ports:
@@ -8,13 +8,34 @@ services:
       - "15672:15672"
       - "15692:15692"
     environment:
-      RABBITMQ_DEFAULT_USER: os-service
-      RABBITMQ_DEFAULT_PASS: change-me-os-service
-      RABBITMQ_DEFAULT_VHOST: /os
-      RABBITMQ_LOAD_DEFINITIONS: /etc/rabbitmq/definitions.json
+      RABBITMQ_OS_PASSWORD: ${RABBITMQ_OS_PASSWORD:?set RABBITMQ_OS_PASSWORD}
+      RABBITMQ_BILLING_PASSWORD: ${RABBITMQ_BILLING_PASSWORD:?set RABBITMQ_BILLING_PASSWORD}
+      RABBITMQ_EXECUTION_PASSWORD: ${RABBITMQ_EXECUTION_PASSWORD:?set RABBITMQ_EXECUTION_PASSWORD}
+    command: >-
+      sh -c '
+      rabbitmq-server &
+      server_pid=$$!;
+      until rabbitmq-diagnostics -q ping; do
+        kill -0 $$server_pid 2>/dev/null || wait $$server_pid;
+        sleep 1;
+      done;
+      rabbitmq-plugins enable rabbitmq_prometheus;
+      rabbitmqctl add_vhost /torque-os 2>/dev/null || true;
+      for user_and_password in
+        "os-service:$$RABBITMQ_OS_PASSWORD"
+        "billing-service:$$RABBITMQ_BILLING_PASSWORD"
+        "execution-service:$$RABBITMQ_EXECUTION_PASSWORD";
+      do
+        username=$${user_and_password%%:*};
+        password=$${user_and_password#*:};
+        rabbitmqctl list_users -q | awk "{print \$$1}" | grep -Fxq "$$username"
+          && rabbitmqctl change_password "$$username" "$$password"
+          || rabbitmqctl add_user "$$username" "$$password";
+        rabbitmqctl set_permissions -p /torque-os "$$username" ".*" ".*" ".*";
+      done;
+      wait $$server_pid'
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
-      - ./docker/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s

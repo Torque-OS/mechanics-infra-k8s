@@ -8,9 +8,10 @@ variable "namespace" {
   type        = string
 }
 
-variable "chart_version" {
-  description = "Pinned Bitnami RabbitMQ chart version"
+variable "image" {
+  description = "RabbitMQ container image"
   type        = string
+  default     = "rabbitmq:4.1-management"
 }
 
 variable "storage_class" {
@@ -35,6 +36,15 @@ variable "rabbitmq_users" {
     tags     = optional(string, "")
   }))
   sensitive = true
+
+  validation {
+    condition = alltrue([
+      for name in ["os-service", "billing-service", "execution-service"] :
+      contains(keys(var.rabbitmq_users), name) &&
+      trimspace(var.rabbitmq_users[name].password) != ""
+    ])
+    error_message = "rabbitmq_users must contain non-empty passwords for os-service, billing-service, and execution-service."
+  }
 }
 
 variable "rabbitmq_vhosts" {
