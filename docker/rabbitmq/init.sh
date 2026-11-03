@@ -4,7 +4,7 @@ set -eu
 rabbitmq-server &
 server_pid=$!
 
-until rabbitmq-diagnostics -q ping; do
+until rabbitmqctl await_startup; do
   if ! kill -0 "$server_pid" 2>/dev/null; then
     wait "$server_pid"
   fi
