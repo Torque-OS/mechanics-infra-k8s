@@ -25,6 +25,7 @@ module "rabbitmq" {
   namespace            = var.rabbitmq_namespace
   image                = var.rabbitmq_image
   storage_class        = var.rabbitmq_storage_class
+  storage_type         = var.rabbitmq_storage_type
   storage_size         = var.rabbitmq_storage_size
   rabbitmq_users       = var.rabbitmq_users
   rabbitmq_vhosts      = var.rabbitmq_vhosts

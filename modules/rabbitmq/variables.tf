@@ -19,6 +19,12 @@ variable "storage_class" {
   type        = string
 }
 
+variable "storage_type" {
+  description = "EBS volume type provisioned by the RabbitMQ StorageClass"
+  type        = string
+  default     = "gp3"
+}
+
 variable "storage_size" {
   description = "RabbitMQ PVC size"
   type        = string

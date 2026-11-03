@@ -107,6 +107,12 @@ variable "rabbitmq_storage_class" {
   default     = "gp3"
 }
 
+variable "rabbitmq_storage_type" {
+  description = "EBS volume type provisioned by the RabbitMQ StorageClass"
+  type        = string
+  default     = "gp3"
+}
+
 variable "rabbitmq_storage_size" {
   description = "Persistent volume size for RabbitMQ"
   type        = string
@@ -114,7 +120,7 @@ variable "rabbitmq_storage_size" {
 }
 
 variable "rabbitmq_users" {
-  description = "RabbitMQ service users and plaintext passwords, supplied through TF_VAR_rabbitmq_users"
+  description = "RabbitMQ service users and plaintext passwords, supplied through TF_VAR_rabbitmq_users when RabbitMQ is enabled"
   type = map(object({
     password = string
     tags     = optional(string, "")

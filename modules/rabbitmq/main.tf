@@ -40,6 +40,22 @@ resource "kubernetes_namespace_v1" "rabbitmq" {
   }
 }
 
+resource "kubernetes_storage_class_v1" "rabbitmq" {
+  metadata {
+    name = var.storage_class
+  }
+
+  storage_provisioner    = "ebs.csi.aws.com"
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  allow_volume_expansion = true
+
+  parameters = {
+    type   = var.storage_type
+    fsType = "ext4"
+  }
+}
+
 resource "kubernetes_secret_v1" "definitions" {
   metadata {
     name      = "${var.release_name}-definitions"
@@ -227,5 +243,9 @@ resource "kubernetes_stateful_set_v1" "rabbitmq" {
     }
   }
 
-  depends_on = [kubernetes_secret_v1.definitions, kubernetes_config_map_v1.config]
+  depends_on = [
+    kubernetes_secret_v1.definitions,
+    kubernetes_config_map_v1.config,
+    kubernetes_storage_class_v1.rabbitmq,
+  ]
 }

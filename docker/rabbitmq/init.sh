@@ -22,6 +22,10 @@ configure_user() {
     rabbitmqctl add_user "$username" "$password"
   fi
 
+  if [ "$username" = "os-service" ]; then
+    rabbitmqctl set_user_tags "$username" management
+  fi
+
   rabbitmqctl set_permissions -p /torque-os "$username" ".*" ".*" ".*"
 }
 
