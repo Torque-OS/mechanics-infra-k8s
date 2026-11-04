@@ -65,11 +65,7 @@ jobs:
         working-directory: .
 
       - name: Terraform Plan
-        run: terraform plan -no-color -input=false -target=module.kubernetes -var="enable_datadog=false" -var="enable_rabbitmq=false"
-        working-directory: .
-
-      - name: Terraform Plan - RabbitMQ
-        run: terraform plan -no-color -input=false -target=module.rabbitmq -var="enable_datadog=false" -var="enable_api_gateway=false" -var="enable_rabbitmq=true"
+        run: terraform plan -no-color -input=false -target=module.kubernetes -var="enable_datadog=false"
         working-directory: .
 
   apply:
