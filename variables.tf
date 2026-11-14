@@ -77,6 +77,79 @@ variable "datadog_release_name" {
   default     = "datadog-agent"
 }
 
+variable "enable_rabbitmq" {
+  description = "Install RabbitMQ on EKS via Kubernetes resources"
+  type        = bool
+  default     = true
+}
+
+variable "rabbitmq_release_name" {
+  description = "Helm release name for RabbitMQ"
+  type        = string
+  default     = "rabbitmq"
+}
+
+variable "rabbitmq_namespace" {
+  description = "Namespace where RabbitMQ is installed"
+  type        = string
+  default     = "messaging"
+}
+
+variable "rabbitmq_image" {
+  description = "RabbitMQ container image"
+  type        = string
+  default     = "rabbitmq:4.1-management"
+}
+
+variable "rabbitmq_storage_class" {
+  description = "EBS-backed StorageClass for RabbitMQ persistence"
+  type        = string
+  default     = "gp3"
+}
+
+variable "rabbitmq_storage_type" {
+  description = "EBS volume type provisioned by the RabbitMQ StorageClass"
+  type        = string
+  default     = "gp3"
+}
+
+variable "rabbitmq_storage_size" {
+  description = "Persistent volume size for RabbitMQ"
+  type        = string
+  default     = "8Gi"
+}
+
+variable "rabbitmq_users" {
+  description = "RabbitMQ service users and plaintext passwords, supplied through TF_VAR_rabbitmq_users when RabbitMQ is enabled"
+  type = map(object({
+    password = string
+    tags     = optional(string, "")
+  }))
+  sensitive = true
+}
+
+variable "rabbitmq_vhosts" {
+  description = "RabbitMQ vhosts to create and share across services"
+  type        = set(string)
+  default     = ["/torque-os"]
+}
+
+variable "rabbitmq_permissions" {
+  description = "RabbitMQ permissions for service users on the shared vhost"
+  type = list(object({
+    user      = string
+    vhost     = string
+    configure = string
+    write     = string
+    read      = string
+  }))
+  default = [
+    { user = "os-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
+    { user = "billing-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
+    { user = "execution-service", configure = ".*", write = ".*", read = ".*", vhost = "/torque-os" },
+  ]
+}
+
 variable "authorizer_lambda_name" {
   description = "Name of the deployed Lambda that authorizes protected routes. Comes from mechanics-lambda, which must be deployed before this is applied."
   type        = string

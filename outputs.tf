@@ -38,6 +38,21 @@ output "datadog_release_status" {
   value       = try(one(module.datadog[*].release_status), null)
 }
 
+output "rabbitmq_namespace" {
+  description = "Namespace where RabbitMQ runs"
+  value       = try(one(module.rabbitmq[*].namespace), null)
+}
+
+output "rabbitmq_amqp_endpoint" {
+  description = "In-cluster RabbitMQ AMQP endpoint"
+  value       = try(one(module.rabbitmq[*].amqp_endpoint), null)
+}
+
+output "rabbitmq_management_endpoint" {
+  description = "In-cluster RabbitMQ management endpoint"
+  value       = try(one(module.rabbitmq[*].management_endpoint), null)
+}
+
 output "api_gateway_authorizer_id" {
   description = "Lambda authorizer guarding the protected routes — empty when authorizer_lambda_name is unset"
   value       = one(module.apigateway[*].authorizer_id)

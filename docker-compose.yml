@@ -1,0 +1,33 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    environment:
+      RABBITMQ_OS_PASSWORD: ${RABBITMQ_OS_PASSWORD:?set RABBITMQ_OS_PASSWORD}
+      RABBITMQ_BILLING_PASSWORD: ${RABBITMQ_BILLING_PASSWORD:?set RABBITMQ_BILLING_PASSWORD}
+      RABBITMQ_EXECUTION_PASSWORD: ${RABBITMQ_EXECUTION_PASSWORD:?set RABBITMQ_EXECUTION_PASSWORD}
+    command: ["sh", "/etc/rabbitmq/init.sh"]
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./docker/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./docker/rabbitmq/init.sh:/etc/rabbitmq/init.sh:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - messaging
+
+volumes:
+  rabbitmq-data:
+
+networks:
+  messaging:
+    name: torque-os-messaging

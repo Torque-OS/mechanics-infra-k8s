@@ -21,6 +21,8 @@ env:
   TF_VAR_auth_lambda_name: ${{ vars.AUTH_LAMBDA_NAME || '' }}
   TF_VAR_authorizer_lambda_name: ${{ vars.AUTHORIZER_LAMBDA_NAME || '' }}
   TF_VAR_gateway_key: ${{ secrets.GATEWAY_KEY }}
+  TF_VAR_rabbitmq_users: ${{ secrets.RABBITMQ_USERS || '{}' }}
+  TF_VAR_enable_rabbitmq: ${{ vars.ENABLE_RABBITMQ || 'true' }}
 
   TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
 
