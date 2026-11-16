@@ -76,7 +76,12 @@ resource "kubernetes_config_map_v1" "config" {
   }
 
   data = {
-    "rabbitmq.conf"   = "load_definitions = /etc/rabbitmq/definitions/definitions.json"
+    # return_per_object_metrics: /metrics reports each queue (queue label) instead of only totals,
+    # so Datadog can show the MassTransit dead-letter queues (*_error) one by one (F4-37).
+    "rabbitmq.conf" = join("\n", [
+      "load_definitions = /etc/rabbitmq/definitions/definitions.json",
+      "prometheus.return_per_object_metrics = true",
+    ])
     "enabled_plugins" = "[rabbitmq_management,rabbitmq_prometheus]."
   }
 }
@@ -146,7 +151,10 @@ resource "kubernetes_stateful_set_v1" "rabbitmq" {
           "app.kubernetes.io/part-of" = var.cluster_name
           "torque-os/service"         = "rabbitmq"
         }
-        annotations = local.metrics_annotations
+        # The config is mounted with subPath, which never picks up ConfigMap changes: a new hash rolls the pod.
+        annotations = merge(local.metrics_annotations, {
+          "torque-os/config-hash" = sha1(jsonencode(kubernetes_config_map_v1.config.data))
+        })
       }
 
       spec {
