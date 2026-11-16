@@ -62,3 +62,8 @@ output "api_gateway_public_routes" {
   description = "Routes deliberately reachable without a token"
   value       = one(module.apigateway[*].public_route_keys)
 }
+
+output "api_gateway_service_routes" {
+  description = "Routes the gateway sends to each service other than mechanics-software"
+  value       = one(module.apigateway[*].service_route_keys)
+}

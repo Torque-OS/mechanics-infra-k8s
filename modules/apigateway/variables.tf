@@ -52,6 +52,16 @@ variable "public_routes" {
   ]
 }
 
+variable "service_backends" {
+  description = "Services other than the default backend, each behind its own NLB listener. route_prefixes (and everything below them) go there through the authorizer; public_routes go there without it."
+  type = map(object({
+    nlb_listener_arn = string
+    route_prefixes   = list(string)
+    public_routes    = list(string)
+  }))
+  default = {}
+}
+
 variable "log_retention_days" {
   description = "CloudWatch retention for API Gateway access logs"
   type        = number

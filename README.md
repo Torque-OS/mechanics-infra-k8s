@@ -26,21 +26,24 @@ Client (internet)
   │
   └─→ API Gateway (HTTP API) ─────────────── the only public address
         │
-        ├─ POST /auth           ──→ Lambda (CPF → JWT)          no authorizer
-        ├─ GET  /health         ──→ VPC Link                    no authorizer
-        ├─ POST /api/auth/login ──→ VPC Link                    no authorizer
+        ├─ POST /auth                              ──→ Lambda (CPF → JWT)   no authorizer
+        ├─ GET  /health, POST /api/auth/login      ──→ VPC Link :8080       no authorizer
+        ├─ POST /api/payments/webhooks/mercadopago ──→ VPC Link :8081       no authorizer
+        ├─ GET  /api/payments/{id}/qr.png          ──→ VPC Link :8081       no authorizer
         │
-        └─ ANY  /{proxy+}       ──→ Lambda authorizer (JWT)
-                                          │ allow
-                                          ▼
-                                       VPC Link
-                                          │
-AWS Region (us-east-1)                    │  private, no route from the internet
-└── VPC                                   ▼
+        ├─ ANY  /api/budgets[/…], /api/payments[/…] ─┐
+        ├─ ANY  /api/executions[/…]                 ─┼─→ Lambda authorizer (JWT)
+        └─ ANY  /{proxy+}                           ─┘          │ allow
+                                                                ▼
+                                                             VPC Link
+                                                                │
+AWS Region (us-east-1)                                          │  private, no route from the internet
+└── VPC                                                         ▼
     ├── Public Subnets  ──→ NAT Gateway
-    └── Private Subnets ──→ internal NLB :8080
-                               └── EKS Node Group
-                                     └── mechanics-software pods
+    └── Private Subnets ──→ internal NLB
+                               ├── :8080 ──→ NodePort 30080 ──→ mechanics-software pods
+                               ├── :8081 ──→ NodePort 30081 ──→ mechanics-billing-service pods
+                               └── :8082 ──→ NodePort 30082 ──→ mechanics-execution-service pods
 ```
 
 The application is unreachable from the internet. The load balancer is internal, so
@@ -48,8 +51,9 @@ its DNS name resolves only inside the VPC, and the gateway reaches it through a 
 Link. Being the sole entry point is a property of the network, not a rule the
 application enforces.
 
-Terraform owns the load balancer; the `mechanics-software-api` Service is a
-`NodePort` that only exposes the pods on the nodes.
+Terraform owns the load balancer; each service's Service is a `NodePort` that only
+exposes its pods on the nodes. The gateway picks the service by path prefix — see
+[Routing by path prefix](#routing-by-path-prefix).
 
 ## Project Structure
 
@@ -162,6 +166,7 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `rabbitmq_users` | Service users and passwords. Pass via `TF_VAR_rabbitmq_users` or the GitHub `RABBITMQ_USERS` secret | required |
 | `rabbitmq_vhosts` · `rabbitmq_permissions` | Shared vhost and service access rules | `/torque-os` |
 | `api_service_port` · `api_node_port` | Listener port and the NodePort it forwards to | `8080` · `30080` |
+| `service_backends` | Other services behind the gateway: listener port, NodePort, route prefixes and public routes per service | billing `8081`/`30081` (`/api/budgets`, `/api/payments`), execution `8082`/`30082` (`/api/executions`) |
 | `gateway_key` | Optional `X-Gateway-Key` secret. Pass via `TF_VAR_gateway_key` | `""` |
 | `auth_lambda_name` | Lambda exposed at `POST /auth`. Empty skips the route | `""` |
 | `authorizer_lambda_name` | Lambda that authorizes protected routes. Empty leaves every route open | `""` |
@@ -177,6 +182,7 @@ The same value must be stored as the `GATEWAY_KEY` GitHub secret in
 | `api_gateway_log_group` | CloudWatch group with gateway access logs |
 | `api_gateway_authorizer_id` | Lambda authorizer guarding the protected routes |
 | `api_gateway_public_routes` | Routes deliberately reachable without a token |
+| `api_gateway_service_routes` | Routes sent to each service other than mechanics-software |
 | `cluster_name` · `cluster_region` · `kubeconfig_command` | Cluster access |
 | `datadog_release_name` · `datadog_namespace` · `datadog_release_status` | Datadog deployment status |
 | `rabbitmq_namespace` · `rabbitmq_amqp_endpoint` · `rabbitmq_management_endpoint` | RabbitMQ deployment endpoints |
@@ -193,6 +199,25 @@ The alternative, integrating against a public load balancer over a shared secret
 header, leaves the load balancer answering TCP connections from anywhere and moves
 enforcement into the application. That was the original approach here; the VPC Link
 replaced it once the account was confirmed to allow one.
+
+### Routing by path prefix
+
+`mechanics-software` stays the default backend (`ANY /{proxy+}`). Every entry in
+`service_backends` adds its own NLB listener and target group on a fixed NodePort, one
+integration over the same VPC Link, and two routes per prefix (`ANY /api/payments` and
+`ANY /api/payments/{proxy+}`). An HTTP API always picks the most specific route, so
+those prefixes leave the default backend without any change to it. The path reaches the
+service untouched.
+
+Each prefix belongs to exactly one service, so a service that adds a new top-level path
+needs a matching entry here. The services' own pipelines deploy the `NodePort` Services
+and this repo never reads the cluster: either side can be applied first. Until a
+service is deployed its target group has no healthy target and the gateway answers 503
+on its routes.
+
+The authorizer guards these routes like the default one; `public_routes` per service
+skip it (the Mercado Pago webhook is verified by its signature, the QR image is opened
+from a link). Roles are still enforced by each service.
 
 ### Why a REQUEST authorizer and not the native JWT one
 

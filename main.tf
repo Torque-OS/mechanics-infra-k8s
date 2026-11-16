@@ -95,6 +95,55 @@ resource "aws_autoscaling_attachment" "api" {
   lb_target_group_arn    = aws_lb_target_group.api[0].arn
 }
 
+resource "aws_lb_target_group" "service" {
+  for_each = local.gateway_enabled == 1 ? var.service_backends : {}
+
+  name        = "${var.cluster_name}-${each.key}"
+  vpc_id      = module.kubernetes.vpc_id
+  target_type = "instance"
+  port        = each.value.node_port
+  protocol    = "TCP"
+
+  health_check {
+    protocol            = "HTTP"
+    path                = "/health"
+    port                = "traffic-port"
+    interval            = 10
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Project = var.cluster_name
+  }
+}
+
+resource "aws_lb_listener" "service" {
+  for_each = local.gateway_enabled == 1 ? var.service_backends : {}
+
+  load_balancer_arn = aws_lb.api[0].arn
+  port              = each.value.listener_port
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.service[each.key].arn
+  }
+}
+
+resource "aws_autoscaling_attachment" "service" {
+  for_each = local.gateway_enabled == 1 ? {
+    for pair in setproduct(keys(var.service_backends), keys(module.kubernetes.node_group_autoscaling_groups)) :
+    "${pair[0]}-${pair[1]}" => {
+      backend = pair[0]
+      group   = module.kubernetes.node_group_autoscaling_groups[pair[1]]
+    }
+  } : {}
+
+  autoscaling_group_name = each.value.group
+  lb_target_group_arn    = aws_lb_target_group.service[each.value.backend].arn
+}
+
 resource "aws_security_group" "vpc_link" {
   count = local.gateway_enabled
 
@@ -141,6 +190,14 @@ module "apigateway" {
   vpc_link_security_group_ids = [aws_security_group.vpc_link[0].id]
 
   gateway_key = var.gateway_key
+
+  service_backends = {
+    for name, backend in var.service_backends : name => {
+      nlb_listener_arn = aws_lb_listener.service[name].arn
+      route_prefixes   = backend.route_prefixes
+      public_routes    = backend.public_routes
+    }
+  }
 
   tags = {
     Project = var.cluster_name

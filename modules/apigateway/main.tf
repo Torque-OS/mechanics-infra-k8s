@@ -7,6 +7,21 @@ locals {
   } : {}
 
   public_routes = local.authorizer_enabled ? toset(var.public_routes) : toset([])
+
+  service_routes = merge({}, [
+    for name, backend in var.service_backends : merge({}, [
+      for prefix in backend.route_prefixes : {
+        "ANY ${prefix}"          = name
+        "ANY ${prefix}/{proxy+}" = name
+      }
+    ]...)
+  ]...)
+
+  service_public_routes = local.authorizer_enabled ? merge({}, [
+    for name, backend in var.service_backends : {
+      for route in backend.public_routes : route => name
+    }
+  ]...) : {}
 }
 
 resource "aws_apigatewayv2_api" "this" {
@@ -40,6 +55,21 @@ resource "aws_apigatewayv2_integration" "eks" {
   connection_type      = "VPC_LINK"
   connection_id        = aws_apigatewayv2_vpc_link.this.id
   integration_uri      = var.nlb_listener_arn
+  timeout_milliseconds = 29000
+
+  request_parameters = local.gateway_key_header
+}
+
+resource "aws_apigatewayv2_integration" "service" {
+  for_each = var.service_backends
+
+  api_id             = aws_apigatewayv2_api.this.id
+  integration_type   = "HTTP_PROXY"
+  integration_method = "ANY"
+
+  connection_type      = "VPC_LINK"
+  connection_id        = aws_apigatewayv2_vpc_link.this.id
+  integration_uri      = each.value.nlb_listener_arn
   timeout_milliseconds = 29000
 
   request_parameters = local.gateway_key_header
@@ -90,6 +120,27 @@ resource "aws_apigatewayv2_route" "public" {
   api_id    = aws_apigatewayv2_api.this.id
   route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.eks.id}"
+
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "service" {
+  for_each = local.service_routes
+
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = each.key
+  target    = "integrations/${aws_apigatewayv2_integration.service[each.value].id}"
+
+  authorization_type = local.authorizer_enabled ? "CUSTOM" : "NONE"
+  authorizer_id      = local.authorizer_enabled ? aws_apigatewayv2_authorizer.jwt[0].id : null
+}
+
+resource "aws_apigatewayv2_route" "service_public" {
+  for_each = local.service_public_routes
+
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = each.key
+  target    = "integrations/${aws_apigatewayv2_integration.service[each.value].id}"
 
   authorization_type = "NONE"
 }
