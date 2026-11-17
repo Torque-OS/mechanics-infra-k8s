@@ -32,6 +32,54 @@ variable "api_service_port" {
   default     = 8080
 }
 
+variable "service_backends" {
+  description = <<-EOT
+    Services other than mechanics-software reached through the gateway. Each one gets
+    its own NLB listener and target group on a fixed NodePort, and the gateway sends
+    route_prefixes (the prefix itself and everything below it) there instead of to
+    mechanics-software. public_routes bypass the authorizer. Nothing here reads the
+    cluster: the Service with that NodePort is deployed by the service's own repo.
+  EOT
+  type = map(object({
+    listener_port  = number
+    node_port      = number
+    route_prefixes = list(string)
+    public_routes  = list(string)
+  }))
+  default = {
+    billing = {
+      listener_port  = 8081
+      node_port      = 30081
+      route_prefixes = ["/api/budgets", "/api/payments"]
+      public_routes = [
+        "POST /api/payments/webhooks/mercadopago",
+        "GET /api/payments/{id}/qr.png",
+      ]
+    }
+    execution = {
+      listener_port  = 8082
+      node_port      = 30082
+      route_prefixes = ["/api/executions"]
+      public_routes  = []
+    }
+  }
+
+  validation {
+    condition = alltrue([
+      for backend in values(var.service_backends) :
+      backend.node_port >= 30000 && backend.node_port <= 32767 && backend.node_port != var.api_node_port
+    ])
+    error_message = "Each node_port must be in 30000-32767 (the range open to the VPC Link) and differ from api_node_port."
+  }
+
+  validation {
+    condition = alltrue([
+      for backend in values(var.service_backends) : backend.listener_port != var.api_service_port
+    ])
+    error_message = "Each listener_port must differ from api_service_port, which mechanics-software uses."
+  }
+}
+
 variable "gateway_key" {
   description = "Optional shared secret the gateway injects as X-Gateway-Key. Defence in depth — the internal load balancer already blocks any other way in. Supply via TF_VAR_gateway_key, never in a committed file."
   type        = string

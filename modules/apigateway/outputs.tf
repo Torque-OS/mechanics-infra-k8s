@@ -25,7 +25,17 @@ output "authorizer_id" {
 
 output "public_route_keys" {
   description = "Routes deliberately left open, bypassing the authorizer"
-  value       = local.public_routes
+  value       = setunion(local.public_routes, keys(local.service_public_routes))
+}
+
+output "service_route_keys" {
+  description = "Routes sent to each service other than the default backend, by service name"
+  value = {
+    for name in keys(var.service_backends) : name => sort(concat(
+      [for route, backend in local.service_routes : route if backend == name],
+      [for route, backend in local.service_public_routes : route if backend == name],
+    ))
+  }
 }
 
 output "vpc_link_id" {
