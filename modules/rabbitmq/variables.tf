@@ -68,3 +68,15 @@ variable "rabbitmq_permissions" {
     read      = string
   }))
 }
+
+variable "cpu_request" {
+  description = "CPU reserved for the RabbitMQ container. Small on purpose: the nodes are t3.small and the broker's volume pins it to one node, so a request that does not fit leaves it Pending."
+  type        = string
+  default     = "250m"
+}
+
+variable "probe_timeout_seconds" {
+  description = "Timeout of the readiness and liveness probes. rabbitmq-diagnostics starts an Erlang VM per call, which takes over a second on a busy burstable node; the Kubernetes default of 1 s made the liveness probe restart a healthy broker."
+  type        = number
+  default     = 10
+}
