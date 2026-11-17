@@ -201,12 +201,19 @@ resource "kubernetes_stateful_set_v1" "rabbitmq" {
             mount_path = "/var/lib/rabbitmq"
           }
 
+          resources {
+            requests = {
+              cpu = var.cpu_request
+            }
+          }
+
           readiness_probe {
             exec {
               command = ["rabbitmq-diagnostics", "-q", "ping"]
             }
             initial_delay_seconds = 10
             period_seconds        = 10
+            timeout_seconds       = var.probe_timeout_seconds
           }
 
           liveness_probe {
@@ -215,6 +222,7 @@ resource "kubernetes_stateful_set_v1" "rabbitmq" {
             }
             initial_delay_seconds = 60
             period_seconds        = 30
+            timeout_seconds       = var.probe_timeout_seconds
           }
         }
 

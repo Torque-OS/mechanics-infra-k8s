@@ -97,6 +97,13 @@ metrics on port `15692`. Datadog discovers those metrics through pod annotations
 Passwords and the `rabbitmq_users` map must be supplied through Terraform
 variables; there are no committed password defaults.
 
+The readiness and liveness probes run `rabbitmq-diagnostics -q ping` with a 10 s
+timeout (module variable `probe_timeout_seconds`). Each call starts an Erlang VM,
+which takes over a second on a busy `t3.small`; with the Kubernetes default of 1 s
+the liveness probe kept restarting a healthy broker. The container reserves
+`250m` of CPU (`cpu_request`) and no memory: the EBS volume pins the pod to one
+node, so a request that node cannot fit would leave the broker `Pending`.
+
 In GitHub Actions, create the `RABBITMQ_USERS` repository secret with the JSON
 map expected by Terraform. The optional `ENABLE_RABBITMQ` repository variable
 controls whether RabbitMQ is installed and defaults to `true`.
